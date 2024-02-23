@@ -12,9 +12,9 @@ bl_info = {
 
 import bpy
 
-class ShaderMainPanel(bpy.types.Panel):
+class SHADER_PT_main_panel(bpy.types.Panel):
     bl_label = "Shader Library"
-    bl_idname = "SHADER_PT_MAINPANEL"
+    bl_idname = "shader_PT_main_panel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'Shader Library'
@@ -24,9 +24,49 @@ class ShaderMainPanel(bpy.types.Panel):
         
         row = layout.row()   
         row.operator('shader.diamond_operator', icon='HANDLETYPE_ALIGNED_VEC')
+        
+        row = layout.row()
+        row.operator('shader.neon_operator', icon='EXPERIMENTAL')
+
+# Create a custom operator for shader with keyframe
+class SHADER_OT_neon(bpy.types.Operator):
+    bl_label = "Neon"
+    bl_idname = 'shader.neon_operator'
+    
+    def execute(self, context):
+        curr_frame = bpy.context.scene.frame_current
+        
+        material_neon = bpy.data.materials.new(name="Neon")
+        material_neon.use_nodes = True
+        
+        tree = material_neon.node_tree        
+        tree.nodes.remove(tree.nodes.get('Principled BSDF'))
+        
+        material_output = tree.nodes.get('Material Output')
+        material_output.location = (400,0)
+        
+        emiss_node = tree.nodes.new('ShaderNodeEmission')
+        emiss_node.location = (200,0)
+        emiss_node.inputs[0].default_value = (0.163182, 1, 1, 1)
+        emiss_node.inputs[1].default_value = 2
+        emiss_node.inputs[1].keyframe_insert("default_value", frame= curr_frame)
+        
+        data_path = f'nodes["{emiss_node.name}"].inputs[1].default_value'
+        
+        fcurves = tree.animation_data.action.fcurves 
+        fc = fcurves.find(data_path)
+        if fc:
+            new_mod = fc.modifiers.new('NOISE')
+            new_mod.strength = 10
+            new_mod.depth = 1
+        
+
+        tree.links.new(emiss_node.outputs[0], material_output.inputs[0])
+        
+        return  {'FINISHED'}
 
 # Create a custom operator for the Diamond Shader    
-class SHADER_OT_DIAMOND(bpy.types.Operator): 
+class SHADER_OT_diamond(bpy.types.Operator): 
     bl_label = "Diamond"
     bl_idname = 'shader.diamond_operator'
     
@@ -50,7 +90,7 @@ class SHADER_OT_DIAMOND(bpy.types.Operator):
 
         glass3_node = material_diamond.node_tree.nodes.new('ShaderNodeBsdfGlass')
         glass3_node.location = (-600,-400)
-        glass3_node.inputs[0].default_value = (0, 0, 1, 1)
+        glass3_node.inputs[0].default_value = (0, 0, 1, 1)        
         glass3_node.inputs[2].default_value = 1.450
         
         add1_node = material_diamond.node_tree.nodes.new('ShaderNodeAddShader')
@@ -89,13 +129,15 @@ class SHADER_OT_DIAMOND(bpy.types.Operator):
                                   
 
 def register():
-    bpy.utils.register_class(ShaderMainPanel)
-    bpy.utils.register_class(SHADER_OT_DIAMOND)
+    bpy.utils.register_class(SHADER_PT_main_panel)
+    bpy.utils.register_class(SHADER_OT_diamond)
+    bpy.utils.register_class(SHADER_OT_neon)
 
 
 def unregister():
-    bpy.utils.unregister_class(ShaderMainPanel)
-    bpy.utils.unregister_class(SHADER_OT_DIAMOND)
+    bpy.utils.unregister_class(SHADER_PT_main_panel)
+    bpy.utils.unregister_class(SHADER_OT_diamond)
+    bpy.utils.unregister_class(SHADER_OT_neon)
 
 
 if __name__ == "__main__":
